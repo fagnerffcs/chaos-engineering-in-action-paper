@@ -1,0 +1,27 @@
+\begin{table*}[!tbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Comparative Empirical Matrix: Chaos Mesh vs.\ LitmusChaos Across RQ01--RQ04}
+\label{tab:cm_vs_litmus_results}
+\begin{tabularx}{\textwidth}{p{2.2cm} p{2.9cm} c c X}
+\toprule
+\textbf{Research Question} & \textbf{Evaluated Metric (Unit)} & \textbf{Chaos Mesh (DaemonSet)} & \textbf{LitmusChaos (Runner Pods)} & \textbf{Statistical Inference \& Architectural Interpretation} \\
+\midrule
+\textbf{RQ01: Temporal} & Actuation Delay $\Delta T_{\text{actuate}}$ ($\text{s}$) & $< 1.00\,\text{s}$ (DaemonSet gRPC) & $\mathbf{11.75\,\text{s}}$ med ($\text{IQR } 1.15\,\text{s}$) & Wilcoxon vs.\ $1.0\,\text{s}$ bound: $W = 465.0$, $\mathbf{p = 9.31 \times 10^{-10}}$ (two-stage \texttt{chaos-runner} $\rightarrow$ \texttt{go-runner} init; mean $12.18 \pm 2.51\,\text{s}$). \\
+\textbf{Precision} & Teardown Latency $\Delta T_{\text{teardown}}$ ($\text{s}$) & $1.20\text{--}2.50\,\text{s}$ (CRD finalizer) & $\mathbf{2.99\,\text{s}}$ med ($\text{IQR } 0.61\,\text{s}$) & Mean $3.05 \pm 0.54\,\text{s}$ (range $2.26\text{--}4.36\,\text{s}$) for Job pod cleanup and \texttt{ChaosEngine} deletion reconciliation. \\
+& Kubernetes Pod Churn (Pods) & $\mathbf{0}$ auxiliary pods ($3$ resident) & $\mathbf{+2}$ pods/trial ($\mathbf{60}$ pods) & Deterministic architectural count: $30$ \texttt{chaos-runner} + $30$ \texttt{go-runner} Job pods spawned in \texttt{otel-demo}. \\
+\midrule
+\textbf{RQ02: Resource} & Idle Control-Plane CPU (mCPU) & $6.47 \pm 0.68$ ($\text{med } 6.00$) & $\mathbf{2.00 \pm 0.00}$ ($\text{med } 2.00$) & Mann-Whitney $U = 900.0$, $\mathbf{p = 4.42 \times 10^{-13}}$, $\hat{A}_{12} = 1.00$ ($3$ resident CM pods vs.\ $1$ standalone \texttt{chaos-operator}). \\
+\textbf{Overhead} & Idle Control-Plane RAM (MiB) & $118.23 \pm 0.63$ ($\text{med } 118.00$) & $\mathbf{29.00 \pm 0.00}$ ($\text{med } 29.00$) & Mann-Whitney $U = 900.0$, $\mathbf{p = 5.28 \times 10^{-13}}$, $\hat{A}_{12} = 1.00$ (standalone CRD mode without \texttt{ChaosCenter}/MongoDB). \\
+\midrule
+\textbf{RQ03: Diagnostic} & Global Multimodal Accuracy ($Acc$) & $\mathbf{25/30}$ ($\mathbf{83.33\%}$) & $\mathbf{25/30}$ ($\mathbf{83.33\%}$) & Fisher's Exact $\text{OR} = 1.00$, $\mathbf{p = 1.000}$; McNemar's Paired Test $n_{11}=22, n_{10}=3, n_{01}=3$, $\mathbf{p = 1.000}$ (exact parity). \\
+\textbf{Parity} & End-to-End $MTTDiag_{\text{total}}$ ($\text{s}$) & $\mathbf{17.27\,\text{s}}$ med ($54.52 \pm 98.41\,\text{s}$) & $54.52\,\text{s}$ med ($69.52 \pm 67.39\,\text{s}$) & Paired Wilcoxon $W = 59.0$, $\mathbf{p = 1.53 \times 10^{-4}}$, $\hat{A}_{12} = 0.147$ ($\delta = -0.707$, Large; shifted by $\Delta T_{\text{actuate}}$). \\
+& Post-Actuation $MTTDiag_{\text{net}}$ ($\text{s}$) & $\mathbf{17.27\,\text{s}}$ med (resolved $16.85\,\text{s}$) & $42.55\,\text{s}$ med ($57.35 \pm 67.58\,\text{s}$) & Mean $MTTDiag_{\text{net}}$ converges closely ($54.52\,\text{s}$ vs.\ $57.35\,\text{s}$); Paired Wilcoxon $W = 55.0$, $p = 7.51 \times 10^{-4}$. \\
+\midrule
+\textbf{RQ04: Native} & Process-Invisible Fault Probe & HTTP-only \texttt{StatusCheck} ($0/11$ CPU) & Multi-modal (\texttt{promProbe} + \texttt{k8sProbe}) & Litmus native probes directly query PromQL/K8s API invariants alongside \texttt{httpProbe} and \texttt{cmdProbe}. \\
+\textbf{Probes} & Quantitative Resilience Scoring & Not supported natively & Supported ($\mathbf{0\text{--}100\%}$ Score) & Automated per-engine \texttt{probeSuccessPercentage} exported in \texttt{ChaosResult} CRDs for CI/CD gates. \\
+\bottomrule
+\end{tabularx}
+\end{table*}

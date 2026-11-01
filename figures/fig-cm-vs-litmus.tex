@@ -1,0 +1,35 @@
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=0.36cm and 0.25cm,
+    font=\sffamily\scriptsize,
+    basebox/.style={draw, rounded corners=2pt, align=center, text width=3.6cm, minimum width=3.75cm, minimum height=0.55cm, inner sep=2.5pt},
+    cmbox/.style={basebox, fill=blue!8, draw=blue!65!black, thick},
+    lcbox/.style={basebox, fill=orange!10, draw=orange!75!black, thick},
+    targetbox/.style={basebox, fill=teal!10, draw=teal!70!black},
+    arrow/.style={-{Stealth[scale=0.75]}, thick, draw=black!75}
+]
+    % Chaos Mesh Side
+    \node[cmbox] (cm_crd) {\textbf{Chaos Mesh CRD}\\(\texttt{Network/Pod/StressChaos})};
+    \node[cmbox, below=0.35cm of cm_crd] (cm_ctrl) {\texttt{chaos-controller-manager}\\(Admission \& Reconciliation)};
+    \node[cmbox, below=0.35cm of cm_ctrl] (cm_daemon) {\texttt{chaos-daemon} (Resident DaemonSet)\\Direct gRPC $\rightarrow$ \texttt{nsenter} / \texttt{cgroups}};
+    \node[targetbox, below=0.35cm of cm_daemon] (cm_pod) {\textbf{Target Pod (\texttt{otel-demo})}\\Immediate Kernel Perturbation};
+
+    % LitmusChaos Side
+    \node[lcbox, right=0.32cm of cm_crd] (lc_crd) {\textbf{LitmusChaos CRDs}\\(\texttt{ChaosEngine} + \texttt{ChaosExperiment})};
+    \node[lcbox, below=0.35cm of lc_crd] (lc_op) {\texttt{chaos-operator} (+ Optional \texttt{ChaosCenter})\\CRD Reconciliation \& Runner Spec};
+    \node[lcbox, below=0.35cm of lc_op] (lc_runner) {Spawns Ephemeral Pods per Trial:\\\texttt{chaos-runner} $\rightarrow$ \texttt{go-runner} Job};
+    \node[targetbox, below=0.35cm of lc_runner] (lc_pod) {\textbf{Target Pod (\texttt{otel-demo})}\\Fault Injection + \texttt{Litmus Probes}};
+
+    \draw[arrow, blue!70!black] (cm_crd) -- (cm_ctrl);
+    \draw[arrow, blue!70!black] (cm_ctrl) -- node[right, font=\sffamily\tiny] {gRPC} (cm_daemon);
+    \draw[arrow, blue!70!black] (cm_daemon) -- node[right, font=\sffamily\tiny] {$\Delta T_{\text{actuate}} < 1\,\text{s}$} (cm_pod);
+
+    \draw[arrow, orange!80!black] (lc_crd) -- (lc_op);
+    \draw[arrow, orange!80!black] (lc_op) -- node[right, font=\sffamily\tiny] {Pod Create} (lc_runner);
+    \draw[arrow, orange!80!black] (lc_runner) -- node[right, font=\sffamily\tiny] {$\Delta T_{\text{actuate}} \approx 11.8\,\text{s}$} (lc_pod);
+\end{tikzpicture}
+\caption{Execution lifecycle comparison: Chaos Mesh's resident DaemonSet injection vs.\ LitmusChaos's ephemeral runner pod orchestration.}
+\Description{Side-by-side diagram comparing Chaos Mesh direct DaemonSet injection and LitmusChaos ephemeral runner pod orchestration.}
+\label{fig:cm_vs_litmus_arch}
+\end{figure}

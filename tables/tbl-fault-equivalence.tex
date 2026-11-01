@@ -1,0 +1,17 @@
+\begin{table*}[!tbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Equivalent Fault Campaign Mapping Between Chaos Mesh and LitmusChaos}
+\label{tab:fault_equivalence}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.35cm} >{\raggedright\arraybackslash}p{2.45cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Fault Stratum ($n$)} & \textbf{Target Pool ($\mathcal{P}_{\text{target}}$)} & \textbf{Chaos Mesh v2.6.3 Specification} & \textbf{LitmusChaos v3.x Equivalent Specification} \\
+\midrule
+\textbf{1. Network Latency} ($n=10$) & \texttt{cart}, \texttt{currency}, \texttt{payment}, \texttt{shipping} & \texttt{kind: NetworkChaos}, \texttt{action: delay}, \texttt{latency: "2000ms"}, \texttt{jitter: "100ms"}, \texttt{direction: to}, \texttt{duration: "180s"} (via \texttt{chaos-daemon} \texttt{tc-netem}). & \texttt{ChaosExperiment: pod-network-latency}, \texttt{NETWORK\_\allowbreak LATENCY: "2000"}, \texttt{JITTER: "100"}, \texttt{TOTAL\_\allowbreak CHAOS\_\allowbreak DURATION: "180"} (via \texttt{go-runner} \texttt{tc-netem}). \\
+\textbf{2. Pod Termination} ($n=9$) & \texttt{cart}, \texttt{currency}, \texttt{payment}, \texttt{shipping} & \texttt{kind: PodChaos}, \texttt{action: pod-kill}, \texttt{mode: one}, explicit pod-instance selector (\texttt{spec.\allowbreak selector.\allowbreak pods}). & \texttt{ChaosExperiment: pod-delete}, \texttt{FORCE: "true"}, \texttt{TOTAL\_\allowbreak CHAOS\_\allowbreak DURATION: "15"}, \texttt{TARGET\_\allowbreak PODS: <pod-name>}. \\
+\textbf{3. CPU Saturation} ($n=11$) & \texttt{cart}, \texttt{currency}, \texttt{payment}, \texttt{shipping} & \texttt{kind: StressChaos}, \texttt{stressors.cpu: \{workers: 2, load: 100\}}, \texttt{duration: "180s"} (via \texttt{stress-ng} in target \texttt{cgroup}). & \texttt{ChaosExperiment: pod-cpu-hog}, \texttt{CPU\_\allowbreak CORES: "2"}, \texttt{CPU\_\allowbreak LOAD: "100"}, \texttt{TOTAL\_\allowbreak CHAOS\_\allowbreak DURATION: "180"} (via \texttt{go-runner} stressor). \\
+\bottomrule
+\end{tabularx}
+\end{table*}

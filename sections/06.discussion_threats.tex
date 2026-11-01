@@ -1,0 +1,20 @@
+\section{Discussion and Threats to Validity}
+\label{sec:discussion}
+
+This section translates our empirical findings across RQ01--RQ04 into an actionable architectural decision framework for cloud-native practitioners and researchers, followed by a systematic analysis of how threats to conclusion, internal, construct, and external validity were mitigated during the study.
+
+\subsection{Architectural Decision Matrix for Practitioners and Researchers}
+Synthesizing our empirical findings across RQ01--RQ04 provides an evidence-based decision framework for selecting between Chaos Mesh and LitmusChaos in cloud-native environments:
+\begin{enumerate}
+    \item \textbf{When to Select Chaos Mesh (High Temporal Precision \& Continuous Chaos Testing):} For empirical software engineering benchmarks, automated RCA latency evaluations ($MTTDiag$), and frequent fault injection campaigns, Chaos Mesh is the superior choice. Its resident \texttt{chaos-daemon} architecture guarantees sub-second fault actuation ($\Delta T_{\text{actuate}} < 1\,\text{s}$ vs.\ $11.75\,\text{s}$ in LitmusChaos), zero auxiliary pod churn in the application namespace ($0$ vs.\ $60$ transient pods across $30$ trials), and faster end-to-end diagnostic convergence ($17.27\,\text{s}$ vs.\ $54.52\,\text{s}$ median $MTTDiag_{\text{total}}$), while uniquely supporting low-level \texttt{TimeChaos} and \texttt{KernelChaos} injections.
+    \item \textbf{When to Select LitmusChaos (Minimal Idle Footprint in Standalone Mode \& CI/CD Governance):} When deployed in standalone CRD operator mode (\texttt{litmus-core}), LitmusChaos consumes $75.5\%$ less idle control-plane memory than Chaos Mesh ($29.00\,\text{MiB}$ vs.\ $118.23\,\text{MiB}$) by avoiding node-resident DaemonSets when no experiments are running. Moreover, for enterprise SRE teams integrating automated resilience gates into GitLab/GitHub CI/CD pipelines or orchestrating hybrid faults across Kubernetes and cloud provider APIs (AWS EC2/RDS, Azure, GCP) \cite{onkalo2025improving, opara2025chaos}, LitmusChaos provides superior out-of-the-box governance through its declarative \texttt{promProbe}/\texttt{k8sProbe} assertions and quantitative Resilience Score calculation—provided experimenters account for runner pod startup lag ($\Delta T_{\text{actuate}} \approx 11.8\,\text{s}$).
+\end{enumerate}
+
+\subsection{Threats to Validity}
+Following Wohlin et al. \cite{wohlin_2012}, we mitigate four categories of threats to validity:
+\begin{itemize}
+    \item \textbf{Conclusion Validity:} Both platforms are evaluated across the exact same seeded permutation of $N=30$ trials (\texttt{RANDOM\_SEED = 42}; $10$ network, $9$ pod-kill, $11$ CPU stress) and $N=30$ anti-pseudoreplicated overhead samples ($\Delta t = 16\,\text{s}$) \cite{hurlbert_1984}, enabling paired non-parametric inference (Wilcoxon Signed-Rank and McNemar's tests).
+    \item \textbf{Internal Validity:} To prevent container image download latency from skewing LitmusChaos's $\Delta T_{\text{actuate}}$, all \texttt{chaos-runner} and \texttt{go-runner} images were pre-pulled onto all K3s worker nodes prior to $T_{\text{CRD}}$, isolating true Kubernetes pod scheduling and initialization overhead.
+    \item \textbf{Construct Validity:} Separating $MTTDiag_{\text{total}} = T_{\text{diag}} - T_{\text{CRD}}$ from $MTTDiag_{\text{net}} = T_{\text{diag}} - T_{\text{effect}}$ prevents conflating LitmusChaos's runner-pod startup delay with observability diagnostic speed. Additionally, filtering out \texttt{chaos-runner} and \texttt{go-runner} pods in PromQL/LogQL queries prevented runner-induced telemetry contamination.
+    \item \textbf{External Validity:} Experiments are conducted on standard CNCF Kubernetes APIs using the polyglot OpenTelemetry Astronomy Shop and fault classes representing $97.42\%$ of real-world open-source chaos configurations \cite{owotogbe2026chaos}.
+\end{itemize}

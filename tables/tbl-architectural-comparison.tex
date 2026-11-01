@@ -1,0 +1,19 @@
+\begin{table*}[!tbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\caption{Architectural and Functional Comparison Between Chaos Mesh and LitmusChaos}
+\label{tab:architectural_comparison}
+\begin{tabularx}{\textwidth}{p{2.65cm} X X}
+\toprule
+\textbf{Architectural Dimension} & \textbf{Chaos Mesh (v2.6+ / v2.8)} & \textbf{LitmusChaos (v3.x)} \\
+\midrule
+\textbf{Core Control Plane} & \texttt{chaos-controller-manager}, \texttt{chaos-dashboard}, \texttt{chaos-dns-server} (Optional SQLite/MySQL persistence). & Standalone \texttt{chaos-operator} (\texttt{litmus-core}) or full \texttt{ChaosCenter} (Frontend + Auth + GraphQL + \texttt{MongoDB} + \texttt{chaos-exporter}). \\
+\textbf{Node Execution Mechanism} & Pre-warmed, node-resident \texttt{chaos-daemon} DaemonSet executing direct gRPC-triggered \texttt{nsenter} syscalls. & On-demand ephemeral \texttt{chaos-runner} pod spawning transient \texttt{go-runner} Kubernetes Jobs per experiment ($+2$ pods/trial). \\
+\textbf{Fault Catalog Scope} & 11 core fault categories (Pod, Network, Stress, IO, DNS, Time/Clock Skew, Kernel/Slab, HTTP, JVM, Block, Physical Node via \texttt{chaosd}) \cite{onkalo2025improving}. & 53+ ChaosHub experiments spanning Kubernetes (Pod, Node, Network, Stress, DNS) and Multi-Cloud IaaS (AWS EC2/EBS/RDS, Azure, GCP, VMware) \cite{onkalo2025improving, opara2025chaos}. \\
+\textbf{Native Hypothesis Verification} & \texttt{StatusCheck} CRD supporting synchronous/continuous HTTP status/body polling; lacks composite resilience scoring. & Declarative \textbf{Litmus Probes} (\texttt{httpProbe}, \texttt{cmdProbe}, \texttt{k8sProbe}, \texttt{promProbe}) in 4 modes (\texttt{SOT}, \texttt{EOT}, \texttt{Edge}, \texttt{Continuous}) + quantitative \textbf{Resilience Score (\%)} \cite{onkalo2025improving}. \\
+\textbf{Observability Export} & Prometheus metrics via controller/daemon endpoints; Chaos Mesh Dashboard events. & Dedicated \texttt{chaos-exporter} exposing per-experiment Prometheus metrics and OpenTelemetry hooks. \\
+\bottomrule
+\end{tabularx}
+\end{table*}

@@ -1,0 +1,22 @@
+\begin{table*}[!tbp]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.12}
+\caption{Stratified Comparison of Root-Cause Accuracy ($Acc$), Actuation Delay ($\Delta T_{\text{actuate}}$), and Diagnostic Latency ($MTTDiag$)}
+\label{tab:stratified_cm_vs_litmus}
+\begin{tabularx}{\textwidth}{p{2.1cm} p{2.1cm} c c c c X}
+\toprule
+\textbf{Stratification} & \textbf{Stratum ($n$)} & \textbf{CM Accuracy ($Acc$)} & \textbf{LC Accuracy ($Acc$)} & \textbf{CM Med.\ $MTTDiag$ (IQR)} & \textbf{LC Med.\ $\Delta T_{\text{actuate}} + MTTDiag_{\text{net}}$} & \textbf{LC Total Med.\ $MTTDiag_{\text{total}}$ (IQR)} \\
+\midrule
+\textbf{By Chaos} & \texttt{cpu-stress} ($n=11$) & $\mathbf{11/11}$ ($\mathbf{100.0\%}$) & $9/11$ ($81.8\%$) & $\mathbf{17.26\,\text{s}}$ ($3.93\,\text{s}$) & $12.16\,\text{s} + 51.79\,\text{s}$ & $64.58\,\text{s}$ ($12.82\,\text{s}$) \\
+\textbf{Fault Class} & \texttt{pod-kill} ($n=9$) & $\mathbf{9/9}$ ($\mathbf{100.0\%}$) & $\mathbf{9/9}$ ($\mathbf{100.0\%}$) & $\mathbf{3.16\,\text{s}}$ ($4.31\,\text{s}$) & $11.78\,\text{s} + 22.62\,\text{s}$ & $33.78\,\text{s}$ ($3.20\,\text{s}$) \\
+& \texttt{network-delay} ($n=10$) & $5/10$ ($50.0\%$) & $\mathbf{7/10}$ ($\mathbf{70.0\%}$) & $\mathbf{37.70\,\text{s}}$ ($273.8\,\text{s}$) & $11.54\,\text{s} + 47.34\,\text{s}$ & $58.70\,\text{s}$ ($23.70\,\text{s}$) \\
+\midrule
+\textbf{By Target} & \texttt{cart} ($n=8$) & $\mathbf{8/8}$ ($\mathbf{100.0\%}$) & $7/8$ ($87.5\%$) & $15.75\,\text{s}$ & $11.97\,\text{s} + 41.49\,\text{s}$ & $53.37\,\text{s}$ \\
+\textbf{Service} & \texttt{currency} ($n=7$) & $\mathbf{7/7}$ ($\mathbf{100.0\%}$) & $6/7$ ($85.7\%$) & $17.16\,\text{s}$ & $11.88\,\text{s} + 44.13\,\text{s}$ & $56.65\,\text{s}$ \\
+& \texttt{payment} ($n=7$) & $\mathbf{5/7}$ ($\mathbf{71.4\%}$) & $\mathbf{5/7}$ ($\mathbf{71.4\%}$) & $17.27\,\text{s}$ & $11.43\,\text{s} + 53.69\,\text{s}$ & $65.12\,\text{s}$ \\
+& \texttt{shipping} ($n=8$) & $5/8$ ($62.5\%$) & $\mathbf{7/8}$ ($\mathbf{87.5\%}$) & $17.27\,\text{s}$ & $11.75\,\text{s} + 39.58\,\text{s}$ & $50.92\,\text{s}$ \\
+\bottomrule
+\end{tabularx}
+\end{table*}

@@ -1,0 +1,130 @@
+\documentclass[sigconf, balance=false]{acmart}
+
+\setcopyright{acmlicensed}
+\copyrightyear{2026}
+\acmYear{2026}
+\acmDOI{XXXXXXX.XXXXXXX}
+
+\acmConference[ACM Conf '26]{Make sure to enter the correct conference title from your rights confirmation email}{2026}{Location, Country}
+\acmISBN{978-1-4503-XXXX-X/2026/XX}
+
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    Bib\TeX}}}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{stfloats}
+\usepackage{placeins}
+\usepackage{enumitem}
+\usepackage{xurl}
+
+% Relax line-breaking penalties in narrow two-column layout to prevent margin overflows
+\emergencystretch=1.5em
+\sloppy
+
+% Tune float placement parameters so figures and tables stay close to their text
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.85}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\dblfloatpagefraction}{0.85}
+\setcounter{topnumber}{5}
+\setcounter{bottomnumber}{5}
+\setcounter{totalnumber}{10}
+\setcounter{dbltopnumber}{5}
+
+\begin{document}
+
+\title[Chaos Engineering in Action]{Chaos Engineering in Action: A Controlled Experimental Comparison of Chaos Mesh and LitmusChaos in Cloud-Native Kubernetes Clusters}
+
+\author{Fagner Silva}
+\authornote{Both authors contributed equally to this research.}
+\affiliation{%
+  \institution{Centro de Informática, UFPE}
+  \city{Recife}
+  \state{Pernambuco}
+  \country{Brazil}
+}
+\email{ffcs@cin.ufpe.br}
+\orcid{0000-0000-0000-0000}
+
+\author{Jackson Raniel}
+\affiliation{%
+  \institution{Universidade de Pernambuco - Campus Caruaru}
+  \city{Caruaru}
+  \state{Pernambuco}
+  \country{Brazil}
+}
+\email{jackson.florencio@upe.br}
+
+\author{Vinícius Cardoso Garcia}
+\authornotemark[1]
+\affiliation{%
+  \institution{Centro de Informática, UFPE}
+  \city{Recife}
+  \state{Pernambuco}
+  \country{Brazil}
+}
+\email{vcg@cin.ufpe.br}
+
+\renewcommand{\shortauthors}{Silva et al.}
+
+\begin{abstract}
+Within the Cloud Native Computing Foundation (CNCF) ecosystem, Chaos Mesh and LitmusChaos have emerged as the two dominant open-source platforms for Kubernetes-native chaos engineering. Despite sharing declarative Custom Resource Definition (CRD) interfaces, the two frameworks adopt fundamentally divergent execution architectures: Chaos Mesh utilizes a node-resident privileged DaemonSet (\texttt{chaos-daemon}) that directly manipulates Linux kernel namespaces, whereas LitmusChaos orchestrates ephemeral per-experiment Kubernetes Jobs and helper pods (\texttt{chaos-runner} and \texttt{go-runner}). Although recent secondary studies compare their feature catalogs qualitatively, the literature lacks a controlled empirical benchmark quantifying their runtime trade-offs. Grounded in experimental software engineering guidelines (GQM and Wohlin et al.), this paper presents a controlled paired experiment comparing Chaos Mesh v2.6.3 and LitmusChaos v3.x on a Kubernetes cluster running the polyglot CNCF OpenTelemetry Astronomy Shop and the PANOPTES multimodal observability stack (Prometheus, Loki, Tempo). Across $N=30$ paired, stratified fault campaigns (\texttt{RANDOM\_SEED = 42}) spanning network latency, pod termination, and CPU saturation, our empirical findings reveal three core trade-offs: (1) LitmusChaos's two-stage runner pod initialization introduces a median actuation delay of $\Delta T_{\text{actuate}} = 11.75\,\text{s}$ ($\text{IQR} = 1.15\,\text{s}$, $p = 9.31 \times 10^{-10}$) and spawns $60$ transient pods across $30$ trials, shifting median end-to-end diagnostic time from $17.27\,\text{s}$ (Chaos Mesh) to $54.52\,\text{s}$ ($42.55\,\text{s}$ net post-actuation, Wilcoxon $p = 7.51 \times 10^{-4}$); (2) in standalone CRD operator mode, LitmusChaos consumes less idle RAM than Chaos Mesh's resident DaemonSet ($29.00\,\text{MiB}$ vs.\ $118.23\,\text{MiB}$, $p = 5.28 \times 10^{-13}$), trading permanent node memory for on-demand pod scheduling churn; and (3) once runner-pod telemetry is filtered, both platforms achieve identical global root-cause diagnostic accuracy ($\mathbf{83.33\%, 25/30}$, Fisher's exact $p = 1.000$, McNemar's $p = 1.000$), while LitmusChaos uniquely enables autonomous PromQL/Kubernetes steady-state probe verification and quantitative Resilience Scoring.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10011007.10011074.10011075</concept_id>
+       <concept_desc>Software and its engineering~Software architectures</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10011007.10011074.10011099.10011102.10011103</concept_id>
+       <concept_desc>Software and its engineering~Software testing and debugging</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10010520.10010521.10010537.10003100</concept_id>
+       <concept_desc>Computer systems organization~Cloud computing</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Software architectures}
+\ccsdesc[500]{Software and its engineering~Software testing and debugging}
+\ccsdesc[500]{Computer systems organization~Cloud computing}
+
+\keywords{Chaos Engineering, Chaos Mesh, LitmusChaos, Kubernetes, Cloud-Native Microservices, Observability, Experimental Software Engineering}
+
+\frenchspacing
+\maketitle
+
+\input{sections/01.introduction}
+
+\input{sections/02.background_architectures}
+
+\input{sections/03.experimental_design}
+
+\input{sections/04.execution_protocol}
+
+\input{sections/05.results_analysis}
+
+\input{sections/06.discussion_threats}
+
+\input{sections/07.conclusion}
+
+\FloatBarrier
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}
+\endinput
