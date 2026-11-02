@@ -1,0 +1,427 @@
+---
+- name: PANOPTES Scenario Provisioning
+  hosts: localhost
+  connection: local
+  vars:
+    monitoring_namespace: "monitoring"
+    app_namespace: "otel-demo"
+    chaos_namespace: "chaos-mesh"
+
+  tasks:
+    - name: Ensure required namespaces exist
+      kubernetes.core.k8s:
+        name: "{{ item }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      loop:
+        - "{{ monitoring_namespace }}"
+        - "{{ app_namespace }}"
+        - "{{ chaos_namespace }}"
+
+    - name: Self-Heal stuck Helm releases (Clear pending locks)
+      shell: |
+        kubectl delete secret -A -l status=pending-install --ignore-not-found
+        kubectl delete secret -A -l status=pending-upgrade --ignore-not-found
+      changed_when: false
+      tags: always
+
+    - name: Add necessary Helm repositories
+      kubernetes.core.helm_repository:
+        name: "{{ item.name }}"
+        repo_url: "{{ item.url }}"
+      loop:
+        - { name: 'prometheus-community', url: 'https://prometheus-community.github.io/helm-charts' }
+        - { name: 'grafana', url: 'https://grafana.github.io/helm-charts' }
+        - { name: 'chaos-mesh', url: 'https://charts.chaos-mesh.org' }
+        - { name: 'open-telemetry', url: 'https://open-telemetry.github.io/opentelemetry-helm-charts' }
+        - { name: 'jetstack', url: 'https://charts.jetstack.io' }
+
+    - block:
+        - name: Deploy Cert-Manager (Required by OTEL Operator)
+          kubernetes.core.helm:
+            name: cert-manager
+            chart_ref: jetstack/cert-manager
+            release_namespace: cert-manager
+            create_namespace: true
+            wait: true
+            timeout: "10m"
+            values:
+              crds:
+                enabled: true
+
+        - name: Await Cert-Manager Webhook stabilization
+          pause:
+            seconds: 40
+            prompt: "Waiting for Cert-Manager webhooks to fully register endpoints with the API Server..."
+
+        - name: Create centralized values.yaml for kube-prometheus-stack
+          copy:
+            dest: "/tmp/kube-prometheus-values.yaml"
+            content: |
+              defaultRules:
+                create: false
+              grafana:
+                adminPassword: nf3wtnCPKTVQAfPMo9SOWF9KOWdGbilsUOhSMbdB
+                sidecar:
+                  dashboards:
+                    enabled: true
+                    label: grafana_dashboard
+                service:
+                  type: NodePort
+                  nodePort: 32000
+                enabled: true
+                additionalDataSources:
+                  - name: Loki
+                    type: loki
+                    uid: loki
+                    url: http://loki.monitoring.svc.cluster.local:3100
+                    access: proxy
+                    jsonData:
+                      derivedFields:
+                        - name: 'TraceID'
+                          datasourceUid: 'tempo'
+                          matcherType: 'regex'
+                          matcherRegex: '(?:traceID|trace_id|traceId)["\s:=]+(\w+)'
+                          url: '$${__value.raw}'
+                  - name: Tempo
+                    type: tempo
+                    uid: tempo
+                    url: http://tempo.monitoring.svc.cluster.local:3200
+                    access: proxy
+                    jsonData:
+                      nodeGraph:
+                        enabled: true
+                      serviceMap:
+                        datasourceUid: 'prometheus'
+                      tracesToMetrics:
+                        datasourceUid: 'prometheus'
+                        spanStartTimeShift: '-2m'
+                        spanEndTimeShift: '2m'
+                        tags:
+                          - key: 'service.name'
+                            value: 'service'
+                          - key: 'job'
+                        queries:
+                          - name: 'Request Rate'
+                            query: 'sum(rate(traces_spanmetrics_latency_count{$$__tags}[5m])) by ($$__labels)'
+                          - name: 'Latency (p95)'
+                            query: 'histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{$$__tags}[5m])) by (le, $$__labels))'
+                      tracesToLogsV2:
+                        datasourceUid: 'loki'
+                        spanStartTimeShift: '-1h'
+                        spanEndTimeShift: '1h'
+                        filterByTraceID: true
+                        filterBySpanID: true
+                        tags:
+                          - key: 'service.name'
+                            value: 'service_name'
+                          - key: 'job'
+                          - key: 'namespace'
+                          - key: 'pod'
+              prometheus:
+                prometheusSpec:
+                  evaluationInterval: 30s
+                  scrapeInterval: 15s
+                  enableRemoteWriteReceiver: true
+                  serviceMonitorSelectorNilUsesHelmValues: false
+                  resources:
+                    requests:
+                      cpu: 100m
+                      memory: 512Mi
+                    limits:
+                      cpu: 1000m
+                      memory: 2Gi
+              prometheus-node-exporter:
+                hostRootFsMount:
+                  enabled: false
+                extraArgs:
+                  - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|mnt|var/lib/docker/.+|var/lib/kubelet/.+|run/containerd/.+)($|/)
+              kube-state-metrics:
+                resources:
+                  requests:
+                    cpu: 50m
+                    memory: 128Mi
+            mode: '0644'
+
+        - name: Install/upgrade kube-prometheus-stack
+          shell: |
+            helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+              -n monitoring \
+              --create-namespace \
+              --timeout 20m \
+              --disable-openapi-validation \
+              -f /tmp/kube-prometheus-values.yaml
+
+        - name: Install Grafana Loki (Logs Backend)
+          kubernetes.core.helm:
+            name: loki
+            chart_ref: grafana/loki
+            release_namespace: "{{ monitoring_namespace }}"
+            wait: true
+            timeout: "10m"
+            values:
+              deploymentMode: SingleBinary
+              loki:
+                auth_enabled: false
+                commonConfig:
+                  replication_factor: 1
+                storage:
+                  type: filesystem
+                useTestSchema: true
+              singleBinary: { replicas: 1 }
+              read: { replicas: 0 }
+              write: { replicas: 0 }
+              backend: { replicas: 0 }
+              gateway: { enabled: false }
+              chunksCache: { enabled: false }
+              resultsCache: { enabled: false }
+              lokiCanary: { enabled: false }
+              test: { enabled: false }
+
+        - name: Install Promtail (Logs Collector)
+          kubernetes.core.helm:
+            name: promtail
+            chart_ref: grafana/promtail
+            release_namespace: "{{ monitoring_namespace }}"
+            wait: false
+            timeout: "10m"
+            values:
+              config:
+                clients:
+                  - url: http://loki:3100/loki/api/v1/push
+
+        - name: Install Grafana Tempo
+          kubernetes.core.helm:
+            name: tempo
+            chart_ref: grafana/tempo
+            release_namespace: "{{ monitoring_namespace }}"
+            wait: false
+            timeout: "10m"
+            values:
+              persistence:
+                enabled: true
+                storageClass: "local-path"
+                size: 10Gi
+              tempo:
+                memBallastSizeMbs: 0
+                searchEnabled: true
+                metricsGenerator:
+                  enabled: true
+                  storage:
+                    path: /var/tempo/generator/wal
+                    remote_write:
+                      - url: http://prometheus-operated.monitoring.svc.cluster.local:9090/api/v1/write
+                        send_exemplars: true
+                memberlist:
+                  service:
+                    publishNotReadyAddresses: true
+                resources:
+                  requests:
+                    cpu: 200m
+                    memory: 512Mi
+                  limits:
+                    cpu: 2000m
+                    memory: 3Gi
+                config:
+                  multitenancy_enabled: false
+                  compactor:
+                    ring:
+                      kvstore:
+                        store: memberlist
+                  ingester:
+                    lifecycler:
+                      ring:
+                        kvstore:
+                          store: memberlist
+                  storage:
+                    trace:
+                      backend: local
+                      local:
+                        path: /var/tempo/traces
+                      wal:
+                        path: /var/tempo/wal
+                  distributor:
+                    receivers:
+                      otlp:
+                        protocols:
+                          grpc:
+                            endpoint: 0.0.0.0:4317
+                          http:
+                            endpoint: 0.0.0.0:4318
+                  overrides:
+                    defaults:
+                      metrics_generator:
+                        processors:
+                          - service-graphs
+                          - span-metrics
+
+        - name: Install OpenTelemetry Operator
+          kubernetes.core.helm:
+            name: opentelemetry-operator
+            chart_ref: open-telemetry/opentelemetry-operator
+            release_namespace: "{{ monitoring_namespace }}"
+            wait: true
+            values:
+              manager:
+                collectorImage:
+                  repository: otel/opentelemetry-collector-k8s
+
+        - name: Wait for OpenTelemetry Operator Webhook endpoints to be active
+          shell: |
+            until kubectl get endpoints opentelemetry-operator-webhook -n {{ monitoring_namespace }} -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null | grep -q '[0-9]'; do
+              echo "Waiting for OpenTelemetry Operator Webhook endpoints..."
+              sleep 5
+            done
+          args:
+            executable: /bin/bash
+          register: webhook_wait
+          retries: 24
+          delay: 5
+          until: webhook_wait.rc == 0
+          changed_when: false
+
+        - name: Copy PANOPTES Collector manifest to target
+          copy:
+            dest: "/tmp/panoptes-collector.yml"
+            content: |
+              apiVersion: opentelemetry.io/v1alpha1
+              kind: OpenTelemetryCollector
+              metadata:
+                name: panoptes-collector
+                namespace: monitoring
+              spec:
+                config: |
+                  receivers:
+                    otlp:
+                      protocols:
+                        grpc:
+                        http:
+                          endpoint: 0.0.0.0:4318
+                  processors:
+                    batch: {}
+                  exporters:
+                    otlp/tempo:
+                      endpoint: "tempo.monitoring.svc.cluster.local:4317"
+                      tls:
+                        insecure: true
+                  service:
+                    telemetry:
+                      logs:
+                        level: "info"
+                    pipelines:
+                      traces:
+                        receivers: [otlp]
+                        processors: [batch]
+                        exporters: [otlp/tempo]
+            mode: '0644'
+
+        - name: Apply PANOPTES Central Collector Custom Resource
+          shell: kubectl apply -f /tmp/panoptes-collector.yml --validate=false
+          changed_when: true
+
+        - name: Apply ServiceMonitor for Tempo
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: monitoring.coreos.com/v1
+              kind: ServiceMonitor
+              metadata:
+                name: tempo-monitor
+                namespace: "{{ monitoring_namespace }}"
+                labels:
+                  release: kube-prometheus-stack
+              spec:
+                selector:
+                  matchLabels:
+                    app.kubernetes.io/name: tempo
+                endpoints:
+                - port: prom-metrics
+                  interval: 30s
+
+        - name: Strip liveness and readiness probes from ALL monitoring workloads (Universal Safety Patch)
+          shell: |
+            for kind in deployment statefulset daemonset; do
+              for name in $(kubectl get $kind -n {{ monitoring_namespace }} -o jsonpath='{.items[*].metadata.name}'); do
+                containers=$(kubectl get $kind $name -n {{ monitoring_namespace }} -o jsonpath='{.spec.template.spec.containers[*].name}')
+                for c in $containers; do
+                  kubectl patch $kind $name -n {{ monitoring_namespace }} --type='strategic' -p="{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"$c\",\"livenessProbe\":null,\"readinessProbe\":null}]}}}}" || true
+                done
+              done
+            done
+          changed_when: false
+      rescue:
+        - fail:
+            msg: "[CRITICAL] Observability stack deployment failed. Ensure worker nodes have sufficient memory and check Helm logs."
+
+    - block:
+        - name: Deploy OpenTelemetry Astronomy Shop (Linked directly to PANOPTES)
+          kubernetes.core.helm:
+            name: telemetry-shop
+            chart_ref: open-telemetry/opentelemetry-demo
+            release_namespace: "{{ app_namespace }}"
+            wait: false
+            timeout: "20m"
+            values:
+              jaeger:
+                enabled: false
+              prometheus:
+                enabled: false
+              grafana:
+                enabled: false
+              opentelemetry-collector:
+                enabled: false
+              global:
+                collector:
+                  endpoint: "panoptes-collector-collector.monitoring:4317"
+                env:
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: "http://panoptes-collector-collector.monitoring:4317"
+
+        - name: Intercept DNS requests to the default collector
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: otel-collector
+                namespace: "{{ app_namespace }}"
+              spec:
+                type: ExternalName
+                externalName: panoptes-collector-collector.monitoring.svc.cluster.local
+                ports:
+                  - port: 4317
+                    name: grpc-otlp
+                  - port: 4318
+                    name: http-otlp
+
+        - name: Clean orphan Chaos Mesh webhooks before install
+          shell: |
+            kubectl delete mutatingwebhookconfiguration -l app.kubernetes.io/instance=chaos-mesh --ignore-not-found
+            kubectl delete validatingwebhookconfiguration -l app.kubernetes.io/instance=chaos-mesh --ignore-not-found
+          changed_when: false
+
+        - name: Install Chaos Mesh
+          kubernetes.core.helm:
+            name: chaos-mesh
+            chart_ref: chaos-mesh/chaos-mesh
+            chart_version: "2.6.3"
+            release_namespace: "{{ chaos_namespace }}"
+            wait: false
+            values:
+              controllerManager:
+                replicaCount: 1
+                podFailure:
+                  pauseImage: "registry.k8s.io/pause:3.9"
+              chaosDaemon:
+                runtime: containerd
+                socketPath: /run/k3s/containerd/containerd.sock
+              dashboard:
+                create: false
+              dnsServer:
+                create: false
+
+        - name: Wait for Chaos Daemons and Controller to be Ready
+          shell: |
+            kubectl wait --for=condition=Ready pods --all -n {{ chaos_namespace }} --timeout=180s

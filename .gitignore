@@ -1,0 +1,25 @@
+# Arquivos privados do agente / ambiente
+GEMINI.md
+AGENTS.md
+
+# Arquivos temporários e intermediários gerados pela compilação do LaTeX
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Arquivos do Sistema Operacional
+.DS_Store
+Thumbs.db
