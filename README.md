@@ -1,6 +1,6 @@
 # Replication Package: Chaos Engineering in Action — Chaos Mesh vs. LitmusChaos in Cloud-Native Kubernetes Clusters
 
-Este repositório contém o Pacote de Replicação (*Replication Package*) completo, auditável e aberto do experimento controlado submetido ao **20º Simpósio Brasileiro de Componentes, Arquiteturas e Reutilização de Software (SBCARS 2026 / CBSoft)**.
+Este repositório contém o Pacote de Replicação (*Replication Package*) completo, auditável e aberto do experimento controlado, estruturado no padrão **ACM (`acmart` / `sigconf`)** e alinhado às diretrizes de **Open Science & Empirical Standards da ACM/IEEE**.
 
 > **Título do Artigo:** Chaos Engineering in Action: A Controlled Experimental Comparison of Chaos Mesh and LitmusChaos in Cloud-Native Kubernetes Clusters  
 > **Autores:** Fagner Silva, Jackson Raniel, Vinícius Cardoso Garcia  
@@ -41,11 +41,11 @@ Este repositório contém o Pacote de Replicação (*Replication Package*) compl
 
 ## ⚙️ Automação e Reprodução Experimental (`scripts/`)
 
-Para atender integralmente aos padrões de **Ciência Aberta (Open Science & Empirical Standards da ACM/IEEE/SBC)**, todo o pipeline — desde o provisionamento da infraestrutura Kubernetes até a execução das rodadas pareadas de injeção de falhas e a geração dos testes estatísticos e gráficos do artigo — foi automatizado no diretório `scripts/`.
+Para atender integralmente aos padrões de **Ciência Aberta (Open Science & Empirical Standards da ACM/IEEE)**, todo o pipeline — desde o provisionamento da infraestrutura Kubernetes até a execução das rodadas pareadas de injeção de falhas e a geração dos testes estatísticos e gráficos do artigo — foi automatizado no diretório `scripts/`.
 
 ### 1. Provisionamento do Ambiente (`setup_panoptes_litmus.sh` & `deploy-panoptes.yml`)
 
-O ambiente experimental utiliza um cluster Kubernetes (`K3d/K3s v1.33.x`) executando o benchmark distribuído **OpenTelemetry Astronomy Shop (`v3.1.0`)**, a plataforma de observabilidade multimodal **PANOPTES** (Prometheus, Loki, Jaeger e Correlator Engine) e os dois motores de Engenharia de Caos graduados/incubados pela CNCF (**Chaos Mesh v2.6.3** e **LitmusChaos v3.x**).
+O ambiente experimental utiliza um cluster Kubernetes (`K3d/K3s v1.33.x`) executando o benchmark distribuído **OpenTelemetry Astronomy Shop (`v3.1.0`)**, uma stack de observabilidade multimodal correlacionada (Prometheus, Loki, Tempo e Correlator Engine) e os dois motores de Engenharia de Caos graduados/incubados pela CNCF (**Chaos Mesh v2.6.3** e **LitmusChaos v3.x**).
 
 Para provisionar o ambiente completo do zero e realizar o *pre-pull* das imagens dos *runners* nos nós do cluster (eliminando viés de rede durante a medição de $\Delta T_{\text{actuate}}$):
 
@@ -98,7 +98,7 @@ O pipeline automatizado pelos scripts espelha com precisão o desenho experiment
 
 ```text
   [ Provisionamento: setup_panoptes_litmus.sh + deploy-panoptes.yml ]
-  (Cluster K3s + OTel Astronomy Shop v3.1.0 + Stack PANOPTES + Pre-pull de Imagens)
+  (Cluster K3s + OTel Astronomy Shop v3.1.0 + Stack de Observabilidade Multimodal + Pre-pull de Imagens)
                                │
          ┌─────────────────────┴─────────────────────┐
          ▼                                           ▼
@@ -135,8 +135,8 @@ O pipeline automatizado pelos scripts espelha com precisão o desenho experiment
 | **RQ01 — Precisão Temporal e Ciclo de Vida** | Latência de Atuação ($\Delta T_{\text{actuate}}$) | **$< 1.00\text{ s}$** (*DaemonSet* residente via `nsenter`) | Mediana **$11.75\text{ s}$** ($\text{IQR}=1.15\text{ s}$, Média $12.18 \pm 2.51\text{ s}$) | Wilcoxon $W = 465.0$, $p = 9.31 \times 10^{-10}$ | `data/litmus_paired_trials.csv` |
 | **RQ01 — Precisão Temporal e Ciclo de Vida** | Latência de *Teardown* ($\Delta T_{\text{teardown}}$) e *Pod Churn* | **$< 1.00\text{ s}$** / **$0$ pods efêmeros** ($3$ pods residentes) | Mediana **$2.99\text{ s}$** ($\text{IQR}=0.61\text{ s}$) / **$+2$ pods/trial** ($60$ pods em $30$ rodadas) | Auditoria de eventos Kubernetes | `data/litmus_paired_trials.csv` |
 | **RQ02 — Overhead de Recursos ($N=30, \Delta t=16\text{s}$)** | Consumo de CPU e Memória RAM do Plano de Controle | **$6.47 \pm 0.68\text{ mCPU}$** (Med $6.0$) / **$118.23 \pm 0.63\text{ MiB}$** (Med $118.0$) | **$2.00 \pm 0.00\text{ mCPU}$** (Med $2.0$) / **$29.00 \pm 0.00\text{ MiB}$** (Med $29.0$) | Mann-Whitney $U = 900.0$, $p = 5.28 \times 10^{-13}$, $\hat{A}_{12} = 1.000$ | `data/chaosmesh_vs_litmus_overhead.csv` |
-| **RQ03 — Paridade Diagnóstica (PANOPTES, $N=30$)** | Acurácia Global de Localização de Causa-Raiz ($Acc$) | **$25/30$ ($83.33\%$)** (`pod-kill`: $100\%$, `cpu`: $100\%$, `net`: $50\%$) | **$25/30$ ($83.33\%$)** (`pod-kill`: $100\%$, `cpu`: $81.8\%$, `net`: $70\%$) | Exato de Fisher $\text{OR}=1.00, p=1.000$; McNemar $p=1.000$ | `data/chaosmesh_paired_trials.csv` & `data/litmus_paired_trials.csv` |
-| **RQ03 — Latência Diagnóstica (PANOPTES, $N=30$)** | Tempo até o Diagnóstico ($MTTDiag_{\text{total}}$ / $MTTDiag_{\text{net}}$) | Mediana **$17.27\text{ s}$** (Média $54.52 \pm 98.41\text{ s}$) | Bruto: Med **$54.52\text{ s}$** / Líquido ($MTTDiag_{\text{net}}$): Med **$42.55\text{ s}$** | Wilcoxon Pareado $W = 55.0$, $p = 7.51 \times 10^{-4}$ | `data/chaosmesh_paired_trials.csv` & `data/litmus_paired_trials.csv` |
+| **RQ03 — Paridade Diagnóstica (RCA Multimodal, $N=30$)** | Acurácia Global de Localização de Causa-Raiz ($Acc$) | **$25/30$ ($83.33\%$)** (`pod-kill`: $100\%$, `cpu`: $100\%$, `net`: $50\%$) | **$25/30$ ($83.33\%$)** (`pod-kill`: $100\%$, `cpu`: $81.8\%$, `net`: $70\%$) | Exato de Fisher $\text{OR}=1.00, p=1.000$; McNemar $p=1.000$ | `data/chaosmesh_paired_trials.csv` & `data/litmus_paired_trials.csv` |
+| **RQ03 — Latência Diagnóstica (RCA Multimodal, $N=30$)** | Tempo até o Diagnóstico ($MTTDiag_{\text{total}}$ / $MTTDiag_{\text{net}}$) | Mediana **$17.27\text{ s}$** (Média $54.52 \pm 98.41\text{ s}$) | Bruto: Med **$54.52\text{ s}$** / Líquido ($MTTDiag_{\text{net}}$): Med **$42.55\text{ s}$** | Wilcoxon Pareado $W = 55.0$, $p = 7.51 \times 10^{-4}$ | `data/chaosmesh_paired_trials.csv` & `data/litmus_paired_trials.csv` |
 | **RQ04 — Validação Declarativa de Hipóteses** | Sondas Nativas de Estado Estável (*Steady-State Probes*) | `StatusCheck` restrito a sondas **HTTP** externas ao CRD | **4 modalidades embutidas** (`httpProbe`, `cmdProbe`, `k8sProbe`, `promProbe`) + *Resilience Score* | Análise arquitetural e inspeção de CRDs (`ChaosResult`) | `tables/tab-probes-comparison.tex` |
 
 ---
