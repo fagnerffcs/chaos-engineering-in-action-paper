@@ -11,10 +11,10 @@ Synthesizing our empirical findings across RQ01--RQ04 provides an evidence-based
 \end{enumerate}
 
 \subsection{Threats to Validity}
-Following Wohlin et al. \cite{wohlin_2012}, we mitigate four categories of threats to validity:
+Following Wohlin et al.~\cite{wohlin_2012}, we mitigate four categories of threats to validity:
 \begin{itemize}
     \item \textbf{Conclusion Validity:} Both platforms are evaluated across the exact same seeded permutation of $N=30$ trials (\texttt{RANDOM\_SEED = 42}; $10$ network, $9$ pod-kill, $11$ CPU stress) and $N=30$ anti-pseudoreplicated overhead samples ($\Delta t = 16\,\text{s}$) \cite{hurlbert_1984}, enabling paired non-parametric inference (Wilcoxon Signed-Rank and McNemar's tests).
     \item \textbf{Internal Validity:} To prevent container image download latency from skewing LitmusChaos's $\Delta T_{\text{actuate}}$, all \texttt{chaos-runner} and \texttt{go-runner} images were pre-pulled onto all K3s worker nodes prior to $T_{\text{CRD}}$, isolating true Kubernetes pod scheduling and initialization overhead.
     \item \textbf{Construct Validity:} Separating $MTTDiag_{\text{total}} = T_{\text{diag}} - T_{\text{CRD}}$ from $MTTDiag_{\text{net}} = T_{\text{diag}} - T_{\text{effect}}$ prevents conflating LitmusChaos's runner-pod startup delay with observability diagnostic speed. Additionally, filtering out \texttt{chaos-runner} and \texttt{go-runner} pods in PromQL/LogQL queries prevented runner-induced telemetry contamination.
-    \item \textbf{External Validity:} Experiments are conducted on standard CNCF Kubernetes APIs using the polyglot OpenTelemetry Astronomy Shop and fault classes representing $97.42\%$ of real-world open-source chaos configurations \cite{owotogbe2026chaos}.
+    \item \textbf{External Validity:} Experiments are conducted on standard CNCF Kubernetes APIs using the polyglot OpenTelemetry Astronomy Shop and fault classes representing $97.42\%$ of real-world open-source chaos configurations~\cite{owotogbe2026chaos}.
 \end{itemize}
